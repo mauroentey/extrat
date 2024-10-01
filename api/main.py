@@ -28,12 +28,15 @@ def extract_text_txt(file_path: str) -> str:
         return f.read()
 
 def download_file(url: str, file_path: str):
-    response = requests.get(url)
-    if response.status_code == 200:
-        with open(file_path, 'wb') as f:
-            f.write(response.content)
-    else:
-        raise HTTPException(status_code=400, detail="No se pudo descargar el archivo desde la URL proporcionada")
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            with open(file_path, 'wb') as f:
+                f.write(response.content)
+        else:
+            raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo desde la URL proporcionada. Código de estado: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=400, detail=f"Error al intentar acceder a la URL: {str(e)}")
 
 @app.post("/extract-text/")
 async def extract_text(url: str = None, file: UploadFile = File(None)):
@@ -63,10 +66,11 @@ async def extract_text(url: str = None, file: UploadFile = File(None)):
 
             return JSONResponse(content={"text": text})
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error al procesar el archivo: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error inesperado al procesar el archivo desde la URL: {str(e)}")
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+
     # Si se proporciona un archivo subido
     elif file:
         filename = file.filename
@@ -92,10 +96,11 @@ async def extract_text(url: str = None, file: UploadFile = File(None)):
 
             return JSONResponse(content={"text": text})
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error al procesar el archivo: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error inesperado al procesar el archivo subido: {str(e)}")
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+
     else:
         raise HTTPException(status_code=400, detail="Debes proporcionar un archivo o una URL válida.")
 
